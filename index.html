@@ -732,33 +732,44 @@ async function showCurrent() {
   resetCat();
   checkReady();
 
-  // Image
+  // Image — trigger Claude ONLY after image has fully painted on screen
   const img = document.getElementById('preview');
   img.classList.remove('loaded');
   const prevUrl = img.src;
   if (prevUrl && prevUrl.startsWith('blob:')) URL.revokeObjectURL(prevUrl);
   const url = URL.createObjectURL(f);
-  img.onload = () => img.classList.add('loaded');
-  img.src = url;
 
-  // Claude analysis
   if (apiKey) {
     setSuggestion('analyzing', null);
-    analyzing = true;
-    const suggestion = await callClaude(f);
-    analyzing = false;
-    if (suggestion) {
-      setSuggestion('ready', suggestion);
-      document.getElementById('name-input').value = suggestion;
-      checkReady();
-    } else {
-      setSuggestion('error', 'Could not analyze — type a name below');
+
+    img.onload = async () => {
+      img.classList.add('loaded');
+      analyzing = true;
+      const suggestion = await callClaude(f);
+      analyzing = false;
+      if (suggestion) {
+        setSuggestion('ready', suggestion);
+        document.getElementById('name-input').value = suggestion;
+        checkReady();
+      } else {
+        setSuggestion('error', 'Could not analyze — type a name below');
+        document.getElementById('name-input').focus();
+      }
+    };
+
+    img.onerror = () => {
+      img.classList.add('loaded');
+      setSuggestion('error', 'Image load failed — type a name below');
       document.getElementById('name-input').focus();
-    }
+    };
+
   } else {
+    img.onload = () => img.classList.add('loaded');
     setSuggestion('manual', 'No API key — type a name below');
     setTimeout(() => document.getElementById('name-input').focus(), 150);
   }
+
+  img.src = url;
 }
 
 function setSuggestion(state, text) {
