@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TRN-454 Organizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #07070f;
+  --panel:    #0e0e1e;
+  --border:   #1c1c38;
+  --accent:   #5b4cdb;
+  --glow:     #8b79ff;
+  --text:     #cccce0;
+  --muted:    #4a4a62;
+  --teal:     #2dd4a0;
+  --red:      #f87171;
+  --radius:   12px;
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+.hidden { display: none !important; }
+
+/* ════════════════════════════════════════
+   SETUP SCREEN
+════════════════════════════════════════ */
+
+#screen-setup {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px calc(40px + var(--safe-bot));
+  gap: 0;
+}
+
+.setup-card {
+  width: 100%;
+  max-width: 500px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.setup-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.setup-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+.setup-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-top: 4px;
+}
+
+.field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+input[type="password"], input[type="text"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  padding: 13px 14px;
+  outline: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+
+input[type="password"]:focus,
+input[type="text"]:focus { border-color: var(--accent); }
+
+.file-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.file-drop-zone:active {
+  border-color: var(--accent);
+  background: rgba(91, 76, 219, 0.05);
+}
+
+.file-drop-zone .drop-icon { opacity: 0.35; }
+.file-drop-zone .drop-main { font-size: 15px; font-weight: 600; color: #fff; }
+.file-drop-zone .drop-sub  { font-size: 12px; color: var(--muted); }
+
+#file-input { display: none; }
+
+#file-count {
+  font-size: 13px;
+  color: var(--teal);
+  text-align: center;
+  min-height: 18px;
+  font-weight: 500;
+}
+
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 15px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  -webkit-appearance: none;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-primary:active  { opacity: 0.82; }
+.btn-primary:disabled {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════
+   ORGANIZE SCREEN
+════════════════════════════════════════ */
+
+#screen-organize {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Top bar */
+#topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+}
+
+#prog-track {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--glow));
+  width: 0%;
+  transition: width 0.35s ease;
+}
+
+#topbar-counter {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Image preview */
+#img-wrap {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 42vh;
+  max-height: 420px;
+}
+
+#preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#preview.loaded { opacity: 1; }
+
+#fname-bar {
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 16px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+/* Side panel — scrollable */
+#side-panel {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 16px calc(24px + var(--safe-bot));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.s-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+
+/* Suggestion box */
+#suggest-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#suggest-text {
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--teal);
+  word-break: break-all;
+}
+
+/* Name input */
+#name-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 13px 14px;
+  outline: none;
+  -webkit-appearance: none;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  transition: border-color 0.15s;
+  autocorrect: off;
+}
+
+#name-input:focus { border-color: var(--accent); }
+
+/* Category grid */
+#cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cat-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 14px 8px;
+  text-align: center;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 0.04em;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.cat-btn:active  { opacity: 0.75; }
+
+.cat-btn.active {
+  background: var(--accent);
+  border-color: var(--glow);
+  color: #fff;
+}
+
+/* Action row */
+#action-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+#btn-skip {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 15px 10px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#btn-skip:active { opacity: 0.7; }
+
+#btn-move {
+  background: var(--border);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 15px 10px;
+  cursor: default;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, color 0.2s;
+  pointer-events: none;
+}
+
+#btn-move.ready {
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#btn-move.ready:active { opacity: 0.82; }
+
+/* ════════════════════════════════════════
+   COMPLETE SCREEN
+════════════════════════════════════════ */
+
+#screen-complete {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px calc(40px + var(--safe-bot));
+  gap: 20px;
+  text-align: center;
+}
+
+.done-glyph {
+  font-size: 44px;
+  letter-spacing: -2px;
+  opacity: 0.25;
+}
+
+.done-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+#stats-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-row:last-child { border-bottom: none; }
+.stat-label { color: var(--muted); font-size: 13px; }
+.stat-val   { font-size: 16px; font-weight: 700; color: #fff; }
+
+#btn-export {
+  width: 100%;
+  max-width: 400px;
+  background: var(--teal);
+  color: #000;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 0.02em;
+}
+
+#btn-export:active   { opacity: 0.85; }
+#btn-export:disabled { opacity: 0.5; pointer-events: none; }
+
+.done-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+#btn-restart {
+  font-size: 13px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+</style>
+</head>
+<body>
+
+<!-- ════ SCREEN 1 — SETUP ════ -->
+<div id="screen-setup">
+  <div class="setup-card">
+
+    <div>
+      <div class="setup-eyebrow">Earth TRN-454</div>
+      <div class="setup-title">Avatar Organizer</div>
+      <p class="setup-sub">Select images from your Files or iCloud Drive to begin sorting.</p>
+    </div>
+
+    <div>
+      <div class="field-label">Claude API Key <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional — enables AI naming)</span></div>
+      <input type="password" id="api-key-input" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+      <p class="field-hint">Get a free key at console.anthropic.com — costs ~$0.001 per image.</p>
+    </div>
+
+    <div>
+      <div class="field-label">Images</div>
+      <label class="file-drop-zone" for="file-input">
+        <svg class="drop-icon" width="36" height="36" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        <span class="drop-main">Tap to select images</span>
+        <span class="drop-sub">Opens Files app — supports iCloud Drive</span>
+      </label>
+      <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/heic" multiple>
+    </div>
+
+    <div id="file-count"></div>
+
+    <button class="btn-primary" id="btn-start" disabled>Select images to begin</button>
+
+  </div>
+</div>
+
+<!-- ════ SCREEN 2 — ORGANIZE ════ -->
+<div id="screen-organize" class="hidden">
+
+  <div id="topbar">
+    <div id="prog-track"><div id="prog-fill"></div></div>
+    <span id="topbar-counter">— / —</span>
+  </div>
+
+  <div id="img-wrap">
+    <img id="preview" src="" alt="Current image">
+  </div>
+
+  <div id="fname-bar">—</div>
+
+  <div id="side-panel">
+
+    <div>
+      <div class="s-label">Claude Suggestion</div>
+      <div id="suggest-box">
+        <div id="suggest-icon"></div>
+        <div id="suggest-text">—</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="s-label">File Name</div>
+      <input type="text" id="name-input"
+             placeholder="descriptive-name-here"
+             autocomplete="off" spellcheck="false"
+             autocorrect="off" autocapitalize="none">
+    </div>
+
+    <div>
+      <div class="s-label">Category</div>
+      <div id="cat-grid"></div>
+    </div>
+
+    <div id="action-row">
+      <button id="btn-skip" onclick="skipFile()">Skip →</button>
+      <button id="btn-move" onclick="moveFile()">Move File →</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════ SCREEN 3 — COMPLETE ════ -->
+<div id="screen-complete" class="hidden">
+
+  <div class="done-glyph">⟨∅⟩</div>
+  <div class="done-title">Inbox Cleared</div>
+
+  <div id="stats-card">
+    <div class="stat-row">
+      <span class="stat-label">Organized</span>
+      <span class="stat-val" id="stat-moved">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Skipped</span>
+      <span class="stat-val" id="stat-skipped">0</span>
+    </div>
+  </div>
+
+  <button id="btn-export" onclick="exportZip()">⬇&nbsp; Download Organized ZIP</button>
+
+  <p class="done-note">
+    Save the ZIP to your iCloud Drive. Extract it into your
+    <strong style="color:var(--text)">Workflow — Repository / Avatars</strong> folder
+    and the subfolders will land in the right place.
+  </p>
+
+  <button id="btn-restart" onclick="restart()">Organize another batch</button>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+
+const CATEGORIES = {
+   "1": ["BLONDES-",   "BLONDES"],
+   "2": ["BRUNETTES-", "BRUNETTES"],
+   "3": ["CREFs-",     "CREFs"],
+   "4": ["FULLBODY-",  "FULL BODY"],
+   "5": ["GINGERS-",   "GINGERS"],
+   "6": ["GOTHS-",     "GOTHS"],
+   "7": ["JAMES-",     "JAMES"],
+   "8": ["MIKAYLA-",   "MIKAYLA"],
+   "9": ["NOCTURNA-",  "NOCTURNA"],
+  "10": ["RAVENS-",    "RAVENS"],
+  "11": ["AUDREY-",    "AUDREY"],
+};
+
+let files       = [];
+let currentIdx  = 0;
+let selectedCat = null;
+let organized   = [];          // {file, finalName, subfolder}
+let stats       = { moved: 0, skipped: 0 };
+let apiKey      = '';
+let analyzing   = false;
+
+// ══════════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════════
+
+const fileInput    = document.getElementById('file-input');
+const apiKeyInput  = document.getElementById('api-key-input');
+const btnStart     = document.getElementById('btn-start');
+const fileCountEl  = document.getElementById('file-count');
+
+// Restore saved API key
+try {
+  const saved = localStorage.getItem('trn454_key');
+  if (saved) apiKeyInput.value = saved;
+} catch(e) {}
+
+fileInput.addEventListener('change', () => {
+  files = Array.from(fileInput.files);
+  const n = files.length;
+  fileCountEl.textContent = n > 0 ? `✓  ${n} image${n !== 1 ? 's' : ''} selected` : '';
+  btnStart.disabled = n === 0;
+  btnStart.textContent = n > 0
+    ? `Start Organizing  ${n}  Image${n !== 1 ? 's' : ''}`
+    : 'Select images to begin';
+});
+
+btnStart.addEventListener('click', () => {
+  apiKey = apiKeyInput.value.trim();
+  try { if (apiKey) localStorage.setItem('trn454_key', apiKey); } catch(e) {}
+  buildCatGrid();
+  showScreen('organize');
+  currentIdx = 0;
+  organized  = [];
+  stats      = { moved: 0, skipped: 0 };
+  showCurrent();
+});
+
+// ══════════════════════════════════════════════
+//  CATEGORY GRID
+// ══════════════════════════════════════════════
+
+function buildCatGrid() {
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+  for (const [num, [prefix, folder]] of Object.entries(CATEGORIES)) {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.id        = `cat-${num}`;
+    btn.textContent = folder;
+    btn.addEventListener('click', () => selectCat(num));
+    grid.appendChild(btn);
+  }
+}
+
+function selectCat(num) {
+  if (selectedCat) document.getElementById(`cat-${selectedCat}`)?.classList.remove('active');
+  selectedCat = num;
+  document.getElementById(`cat-${num}`)?.classList.add('active');
+  checkReady();
+}
+
+function resetCat() {
+  if (selectedCat) document.getElementById(`cat-${selectedCat}`)?.classList.remove('active');
+  selectedCat = null;
+}
+
+// ══════════════════════════════════════════════
+//  ORGANIZE FLOW
+// ══════════════════════════════════════════════
+
+async function showCurrent() {
+  if (currentIdx >= files.length) {
+    showComplete();
+    return;
+  }
+
+  const f     = files[currentIdx];
+  const total = files.length;
+
+  // Progress bar
+  document.getElementById('prog-fill').style.width = ((currentIdx / total) * 100) + '%';
+  document.getElementById('topbar-counter').textContent = `${currentIdx + 1} / ${total}`;
+
+  // Reset
+  document.getElementById('fname-bar').textContent   = f.name;
+  document.getElementById('name-input').value         = '';
+  resetCat();
+  checkReady();
+
+  // Image
+  const img = document.getElementById('preview');
+  img.classList.remove('loaded');
+  const prevUrl = img.src;
+  if (prevUrl && prevUrl.startsWith('blob:')) URL.revokeObjectURL(prevUrl);
+  const url = URL.createObjectURL(f);
+  img.onload = () => img.classList.add('loaded');
+  img.src = url;
+
+  // Claude analysis
+  if (apiKey) {
+    setSuggestion('analyzing', null);
+    analyzing = true;
+    const suggestion = await callClaude(f);
+    analyzing = false;
+    if (suggestion) {
+      setSuggestion('ready', suggestion);
+      document.getElementById('name-input').value = suggestion;
+      checkReady();
+    } else {
+      setSuggestion('error', 'Could not analyze — type a name below');
+      document.getElementById('name-input').focus();
+    }
+  } else {
+    setSuggestion('manual', 'No API key — type a name below');
+    setTimeout(() => document.getElementById('name-input').focus(), 150);
+  }
+}
+
+function setSuggestion(state, text) {
+  const icon = document.getElementById('suggest-icon');
+  const disp = document.getElementById('suggest-text');
+
+  if (state === 'analyzing') {
+    icon.innerHTML = '<div class="spinner"></div>';
+    disp.style.color = 'var(--muted)';
+    disp.textContent = 'Analyzing…';
+  } else if (state === 'ready') {
+    icon.innerHTML = '<span style="color:var(--teal);font-size:16px">✓</span>';
+    disp.style.color = 'var(--teal)';
+    disp.textContent = text;
+  } else {
+    icon.innerHTML = '<span style="color:var(--muted);font-size:14px">—</span>';
+    disp.style.color = 'var(--muted)';
+    disp.textContent = text;
+  }
+}
+
+// ── Claude API ─────────────────────────────────────────────────
+
+async function callClaude(file) {
+  try {
+    const b64       = await toBase64(file);
+    const mediaType = file.type || 'image/jpeg';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'x-api-key':     apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 64,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type:   'image',
+              source: { type: 'base64', media_type: mediaType, data: b64 },
+            },
+            {
+              type: 'text',
+              text: 'Analyze this image. Return ONLY a short descriptive filename: 2-4 words, all lowercase, hyphen-separated, no file extension, no extra text. Examples: dark-velvet-gown, beach-casual-look, bold-red-crop-top, moody-editorial-shot.',
+            },
+          ],
+        }],
+      }),
+    });
+
+    const data = await res.json();
+    const raw  = data.content?.[0]?.text?.trim() || '';
+    return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '') || null;
+
+  } catch (err) {
+    console.error('Claude API error:', err);
+    return null;
+  }
+}
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Move / Skip ────────────────────────────────────────────────
+
+function checkReady() {
+  const name  = document.getElementById('name-input').value.trim();
+  const ready = !!(name && selectedCat);
+  document.getElementById('btn-move').classList.toggle('ready', ready);
+}
+
+document.getElementById('name-input').addEventListener('input', checkReady);
+
+function moveFile() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name || !selectedCat) return;
+
+  const f            = files[currentIdx];
+  const [prefix, subfolder] = CATEGORIES[selectedCat];
+  const ext          = (f.name.split('.').pop() || 'jpg').toLowerCase();
+  const finalName    = `${prefix}${name}.${ext}`;
+
+  organized.push({ file: f, finalName, subfolder });
+  stats.moved++;
+  currentIdx++;
+  showCurrent();
+}
+
+function skipFile() {
+  stats.skipped++;
+  currentIdx++;
+  showCurrent();
+}
+
+// ══════════════════════════════════════════════
+//  COMPLETE + ZIP EXPORT
+// ══════════════════════════════════════════════
+
+function showComplete() {
+  document.getElementById('stat-moved').textContent   = stats.moved;
+  document.getElementById('stat-skipped').textContent = stats.skipped;
+  showScreen('complete');
+}
+
+async function exportZip() {
+  if (organized.length === 0) return;
+
+  const btn = document.getElementById('btn-export');
+  btn.textContent = 'Building ZIP…';
+  btn.disabled    = true;
+
+  try {
+    const zip = new JSZip();
+
+    for (const item of organized) {
+      const buffer = await item.file.arrayBuffer();
+      zip.file(`UGC-Organized/${item.subfolder}/${item.finalName}`, buffer);
+    }
+
+    const blob = await zip.generateAsync({
+      type:        'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 3 },
+    });
+
+    const zipFile = new File([blob], 'UGC-Organized.zip', { type: 'application/zip' });
+
+    // Try Web Share API (native iOS share sheet — best for iPad)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+      await navigator.share({
+        files: [zipFile],
+        title: 'UGC Organized',
+      });
+    } else {
+      // Fallback: direct download link
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = 'UGC-Organized.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  } catch (err) {
+    console.error('Export error:', err);
+    alert('Export failed: ' + (err.message || 'Unknown error'));
+  }
+
+  btn.textContent = '⬇\u00a0 Download Organized ZIP';
+  btn.disabled    = false;
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+
+function showScreen(name) {
+  ['setup', 'organize', 'complete'].forEach(s => {
+    document.getElementById(`screen-${s}`).classList.toggle('hidden', s !== name);
+  });
+}
+
+function restart() {
+  files      = [];
+  currentIdx = 0;
+  selectedCat = null;
+  organized  = [];
+  stats      = { moved: 0, skipped: 0 };
+  fileInput.value = '';
+  fileCountEl.textContent = '';
+  btnStart.disabled    = true;
+  btnStart.textContent = 'Select images to begin';
+  showScreen('setup');
+}
+
+// Keyboard shortcuts (for Magic Keyboard on iPad)
+document.addEventListener('keydown', e => {
+  if (document.getElementById('screen-organize').classList.contains('hidden')) return;
+  if (document.activeElement === document.getElementById('name-input')) {
+    if (e.key === 'Enter') { e.preventDefault(); moveFile(); }
+    return;
+  }
+  if (e.key === 's' || e.key === 'S')  { skipFile(); return; }
+  if (e.key === 'Enter')               { moveFile(); return; }
+  const n = parseInt(e.key);
+  if (!isNaN(n) && n >= 1 && n <= 9)  { selectCat(String(n)); }
+});
+</script>
+</body>
+</html>
