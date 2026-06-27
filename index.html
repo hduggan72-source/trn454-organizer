@@ -797,55 +797,80 @@ async function callClaude(file) {
   // Check if running from a local file — API calls will be blocked by CORS
   const proto = window.location.protocol;
   if (proto === 'file:' || proto.includes('external-file') || proto.includes('edge-file')) {
-    setSuggestion('error', 'Open from iCloud Drive in Safari to enable AI naming');
+    setSuggestion('error', 'Local file — API blocked. Upload to GitHub Pages.');
     return null;
   }
 
   try {
     // Convert image to JPEG via canvas — handles HEIC, PNG, WebP, etc.
-    const { b64, mediaType } = await imageToJpegBase64();
+    let b64, mediaType;
+    try {
+      const result = await imageToJpegBase64();
+      b64 = result.b64;
+      mediaType = result.mediaType;
+    } catch (canvasErr) {
+      setSuggestion('error', 'Canvas failed: ' + canvasErr.message);
+      return null;
+    }
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 64,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type:   'image',
-              source: { type: 'base64', media_type: mediaType, data: b64 },
-            },
-            {
-              type: 'text',
-              text: 'Analyze this image. Return ONLY a short descriptive filename: 2-4 words, all lowercase, hyphen-separated, no file extension, no extra text. Examples: dark-velvet-gown, beach-casual-look, bold-red-crop-top, moody-editorial-shot.',
-            },
-          ],
-        }],
-      }),
-    });
+    if (!b64 || b64.length < 100) {
+      setSuggestion('error', 'Image capture empty — try next image');
+      return null;
+    }
+
+    let res;
+    try {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type':      'application/json',
+          'x-api-key':         apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model:      'claude-sonnet-4-6',
+          max_tokens: 64,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type:   'image',
+                source: { type: 'base64', media_type: mediaType, data: b64 },
+              },
+              {
+                type: 'text',
+                text: 'Analyze this image. Return ONLY a short descriptive filename: 2-4 words, all lowercase, hyphen-separated, no file extension, no extra text. Examples: dark-velvet-gown, beach-casual-look, bold-red-crop-top, moody-editorial-shot.',
+              },
+            ],
+          }],
+        }),
+      });
+    } catch (fetchErr) {
+      setSuggestion('error', 'Network error: ' + fetchErr.message);
+      return null;
+    }
 
     if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error('API error:', res.status, errData);
-      setSuggestion('error', `API error ${res.status} — type a name below`);
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const errData = await res.json();
+        errMsg += ': ' + (errData?.error?.message || JSON.stringify(errData)).slice(0, 80);
+      } catch(e) {}
+      setSuggestion('error', errMsg);
       return null;
     }
 
     const data = await res.json();
     const raw  = data.content?.[0]?.text?.trim() || '';
+    if (!raw) {
+      setSuggestion('error', 'Empty response from Claude');
+      return null;
+    }
     return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '') || null;
 
   } catch (err) {
-    console.error('Claude API error:', err);
-    setSuggestion('error', 'Could not reach API — type a name below');
+    setSuggestion('error', 'Error: ' + err.message);
     return null;
   }
 }
