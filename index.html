@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>TRN-454 Organizer</title>
+<title>UGC AI Image Organizer — iPad</title>
 <script>
 /*!
 
@@ -512,7 +512,7 @@ input[type="text"]:focus { border-color: var(--accent); }
     <div>
       <div class="setup-eyebrow">Earth TRN-454</div>
       <div class="setup-title">Avatar Organizer</div>
-      <p class="setup-sub">Select images from your Files or iCloud Drive to begin sorting.</p>
+      <p class="setup-sub">Select images from your Files or iCloud Drive. Claude AI names them — you pick the category — exports as an organized ZIP.</p>
     </div>
 
     <div>
@@ -619,14 +619,36 @@ input[type="text"]:focus { border-color: var(--accent); }
 
 <script>
 // ══════════════════════════════════════════════
-//  STATE
+//  CONFIG  —  Edit this section to customize
 // ══════════════════════════════════════════════
 
+// Your Anthropic API key (console.anthropic.com)
+// Saved in browser between sessions — enter once, stays set.
+const DEFAULT_API_KEY = "";
+
+// ZIP filename when you export
+const ZIP_FILENAME = "UGC-Organized.zip";
+
+// Categories: ["PREFIX-", "Folder Name"]
+// Prefix is added to every filename. Folder name goes in the ZIP subfolder.
+// Add, remove, or rename entries freely — the UI updates automatically.
 const CATEGORIES = {
-   "1": ["RETRO-",     "RETRO"],
-   "2": ["XX_ME-",     "XX ME"],,
+   "1": ["BLONDES-",   "BLONDES"],
+   "2": ["BRUNETTES-", "BRUNETTES"],
    "3": ["CREFs-",     "CREFs"],
+   "4": ["FULLBODY-",  "FULL BODY"],
+   "5": ["GINGERS-",   "GINGERS"],
+   "6": ["GOTHS-",     "GOTHS"],
+   "7": ["JAMES-",     "JAMES"],
+   "8": ["MIKAYLA-",   "MIKAYLA"],
+   "9": ["NOCTURNA-",  "NOCTURNA"],
+  "10": ["RAVENS-",    "RAVENS"],
+  "11": ["AUDREY-",    "AUDREY"],
 };
+
+// ══════════════════════════════════════════════
+//  END OF CONFIG
+// ══════════════════════════════════════════════
 
 let files       = [];
 let currentIdx  = 0;
@@ -645,10 +667,11 @@ const apiKeyInput  = document.getElementById('api-key-input');
 const btnStart     = document.getElementById('btn-start');
 const fileCountEl  = document.getElementById('file-count');
 
-// Restore saved API key
+// Restore saved API key (or use default from config)
 try {
   const saved = localStorage.getItem('trn454_key');
   if (saved) apiKeyInput.value = saved;
+  else if (DEFAULT_API_KEY) apiKeyInput.value = DEFAULT_API_KEY;
 } catch(e) {}
 
 fileInput.addEventListener('change', () => {
